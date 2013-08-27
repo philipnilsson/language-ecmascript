@@ -705,40 +705,6 @@ functionExpression = withPos $
   <*> inParens formalParameterList
   <*> inBraces functionBody
 
-assignmentExpressionGen :: PosInParser Expression
-assignmentExpressionGen =
-  try (AssignExpr def <$> liftIn leftHandSideExpression <*> liftIn assignOp <*> assignmentExpressionGen)
-  <|> conditionalExpressionGen
-
-assignOp :: Parser AssignOp
-assignOp = choice $
-  [ OpAssign         <$ lexeme (string "=")
-  , OpAssignAdd      <$ lexeme (string "+=")
-  , OpAssignSub      <$ lexeme (string "-=")
-  , OpAssignMul      <$ lexeme (string "*=")
-  , OpAssignDiv      <$ lexeme (string "/=")
-  , OpAssignMod      <$ lexeme (string "%=")
-  , OpAssignLShift   <$ lexeme (string "<<=")
-  , OpAssignSpRShift <$ lexeme (string ">>=")
-  , OpAssignZfRShift <$ lexeme (string ">>>=")
-  , OpAssignBAnd     <$ lexeme (string "&=")
-  , OpAssignBXor     <$ lexeme (string "^=")
-  , OpAssignBOr      <$ lexeme (string "|=")]
-
-assignmentExpression, assignmentExpressionNoIn :: PosParser Expression
-assignmentExpression     = withIn   assignmentExpressionGen
-assignmentExpressionNoIn = withNoIn assignmentExpressionGen
-
-conditionalExpressionGen :: PosInParser Expression
-conditionalExpressionGen =
-  do l <- logicalOrExpressionGen
-     let cond = CondExpr def l
-                <$  liftIn pquestion
-                <*> assignmentExpressionGen
-                <*  liftIn pcolon
-                <*> assignmentExpressionGen
-     withPos cond <|> return l
-
 type InOp s = Operator s (Bool, ParserState) Identity (Positioned Expression)
 
 mkOp :: Show a => Parser a -> InParser a
@@ -748,6 +714,10 @@ makeInfixExpr :: Stream s Identity Char => Parser () -> InfixOp -> InOp s
 makeInfixExpr str constr = 
   Infix (InfixExpr def constr <$ mkOp str) AssocLeft 
       
+makeAssignExpr :: Stream s Identity Char => Parser () -> AssignOp -> InOp s
+makeAssignExpr str constr = 
+  Infix (AssignExpr def constr <$ mkOp str) AssocLeft 
+
 makePostfixExpr :: Stream s Identity Char => Parser () -> UnaryAssignOp -> InOp s
 makePostfixExpr str constr =
   Postfix $ UnaryAssignExpr def constr <$ (liftIn hadNoNewLine >> mkOp str)
@@ -806,12 +776,30 @@ exprTable =
   , [ makeInfixExpr pbor  OpBOr ]
   , [ makeInfixExpr pand OpLAnd ]
   , [ makeInfixExpr por OpLOr ]
+  
+  , [ makeAssignExpr passign OpAssign
+    , makeAssignExpr passignadd OpAssignAdd
+    , makeAssignExpr passignsub OpAssignSub
+    , makeAssignExpr passignmul OpAssignMul
+    , makeAssignExpr passigndiv OpAssignDiv
+    , makeAssignExpr passignmod OpAssignMod
+    , makeAssignExpr passignshl OpAssignLShift
+    , makeAssignExpr passignshr OpAssignSpRShift
+    , makeAssignExpr passignushr OpAssignZfRShift
+    , makeAssignExpr passignbor OpAssignBAnd
+    , makeAssignExpr passignbxor OpAssignBXor
+    , makeAssignExpr passignbor OpAssignBOr
+    ]
   ]
 
 
-logicalOrExpressionGen :: PosInParser Expression
-logicalOrExpressionGen =
+assignmentExpressionGen :: PosInParser Expression
+assignmentExpressionGen =
   buildExpressionParser exprTable (liftIn leftHandSideExpression) <?> "simple expression"
+
+assignmentExpression, assignmentExpressionNoIn :: PosParser Expression
+assignmentExpression     = withIn assignmentExpressionGen
+assignmentExpressionNoIn = withNoIn assignmentExpressionGen
 
 -- avoid putting comma expression on everything
 -- probably should be binary op in the table

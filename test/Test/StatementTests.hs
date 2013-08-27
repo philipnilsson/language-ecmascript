@@ -14,7 +14,7 @@ import Language.ECMAScript5.Parser
 
 tests_ecmascript5_parser :: TestTree
 tests_ecmascript5_parser = 
-  testGroup "Parser tests" $ unitTests (parseTest False) ++ [whileEmptyTest, commentTest]
+  testGroup "Parser tests" $ unitTests (parseTest False) ++ [whileEmptyTest, commentTest, jQuery]
 
 -- A re-run all the tests withf automatic semi-colon-insertion
 
@@ -63,7 +63,7 @@ expectedParseFail file (expectedLine, expectedCol) =
                     assertEqual "Parse failure at wrong column" expectedCol col
 
 ableToParse file =
-  do content <- readFile ("../test-data/" ++ file ++ ".js")
+  do content <- readFile ("test-data/" ++ file ++ ".js")
      let res = parseFromString content
      case res of
        Right _ -> return ()
